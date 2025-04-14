@@ -1,8 +1,10 @@
 import numpy as np
 import h5py
+import torch
 from CustomDataset import CustomDataset
 from torch.utils.data import DataLoader
-
+from torch import nn
+from Network import Network
 datapath = 'DATA/'
 
 def openAndReshape(file_name, shape=None):
@@ -65,7 +67,44 @@ def dataCleaner(insoles, mocap, labels, seuil=3):
     """
     return mocap_cleaned_nonan, insoles_cleaned_nonan, labels_cleaned_nonan
 
+def train(dataloader, model, loss_fn, optim, device):
+    """Fonction d'entrainement du modèle"""
+    model.train()
+    sum_loss = 0
+    total = 0
+    for step, data in enumerate(dataloader):
+        inputs, labels = data
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        pred = model(inputs)
+        loss = loss_fn(pred, labels)
+        total += labels.size(0)
+        sum_loss += loss.item()
+        optim.zero_grad()
+        loss.backward()
+        optim.step()
 
+        if step % 100 == 0:
+            print(f"Step {step}, Loss: {loss.item()}")
+    
+    return sum_loss / total
+
+def test(dataloader, model, loss_fn, device):
+    correct = 0
+    total = 0
+    model.eval()
+    with torch.no_grad():
+        for data in dataloader:
+            inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            output = model(inputs)
+            predicted = output.argmax(1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    print('Accuracy on test dataset: '+str(100 * correct / total)+' %')
+    print("Prediction on some test images :" )
+    return 100 * correct / total
 
 # --- Chargement des données d'entrainement ---
 labels = openAndReshape(datapath + 'train_labels.h5')
@@ -75,14 +114,55 @@ train_mocap = openAndReshape(datapath + 'train_mocap.h5', shape=(6938, 100, 129)
 
 train_insoles_cleaned, train_mocap_cleaned, labels_cleaned = dataCleaner(train_insoles, train_mocap, labels, seuil=3)
 
-
 # --- Chargement des données de test ---
 test_mocap = openAndReshape(datapath + 'test_mocap.h5', shape=(273, 100, 129))
 test_insoles = openAndReshape(datapath + 'test_insoles.h5', shape=(273, 100, 50))
+
+# --- Concaténation des données d'entrainement et de test ---
+train_data_concatenated = np.concatenate((train_insoles_cleaned, train_mocap_cleaned), axis=2)
+test_data_concatenated = np.concatenate((test_insoles, test_mocap), axis=2)
+
 # --- Création du jeu de données d'entrainement ---
-train_dataset = CustomDataset(train_insoles_cleaned, train_mocap_cleaned, labels_cleaned)
+train_dataset = CustomDataset(train_data_concatenated, labels_cleaned)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 # --- Création du jeu de données de test ---
-test_dataset = CustomDataset(test_insoles, test_mocap)
+test_dataset = CustomDataset(test_data_concatenated)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+
+if torch.cuda.is_available():
+      device = 'cuda'
+else:
+      device = 'cpu'
+print(device)
+
+model = Network(input_size=179, hidden_size=80, num_classes=12, num_layers=2, dropout_rate=0.5).to(device)
+print(model)
+
+
+loss_fn = nn.CrossEntropyLoss()
+tx_appr = 0.001
+optim = torch.optim.SGD(model.parameters(), lr=tx_appr, momentum=0.9)
+epochs = 10
+epoch_losses= []
+epoch_accuracies =[]
+t= []
+print("Before Training")
+oneAcc=test(test_loader, model, loss_fn,device)
+
+print("Training Start")
+for i in range(epochs):
+    t.append(i+1)
+    print('Nombre d epochs : '+str(i+1))
+    oneLoss=train(train_loader, model, loss_fn, optim, device)
+    oneAcc=test(test_loader, model, loss_fn,device)
+    epoch_losses.append(oneLoss)
+    epoch_accuracies.append(oneAcc)
+
+print("Training End")
+print("After Training")
+oneAcc=test(test_loader, model, loss_fn,device)
+print("Epoch Losses: ", epoch_losses)
+print("Epoch Accuracies: ", epoch_accuracies)
+# --- Sauvegarde du modèle ---
+torch.save(model.state_dict(), 'model.pth')
