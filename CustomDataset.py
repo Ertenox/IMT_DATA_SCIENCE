@@ -11,6 +11,7 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.labels is not None:
+            self.labels = self.labels.squeeze()
             return self.data[idx], self.labels[idx]
         else:
-            return self.data[idx]
+            return self.data[idx],torch.tensor(-1)

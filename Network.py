@@ -4,7 +4,7 @@ import torch.nn.functional as F
 class Network(nn.Module):
     """Réseau neuronal de The Classification of Multiple Interacting Gait Abnormalities Using Insole Sensors and Machine Learning"""
 
-    def __init__(self, input_size, hidden_size, num_classes=12, num_layers=1, dropout_rate=0.5):
+    def __init__(self, input_size, hidden_size, num_classes=13, num_layers=1, dropout_rate=0.5):
         super(Network, self).__init__()
         
         self.bi_lstm = nn.LSTM(input_size=input_size,

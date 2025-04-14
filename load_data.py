@@ -103,7 +103,6 @@ def test(dataloader, model, loss_fn, device):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     print('Accuracy on test dataset: '+str(100 * correct / total)+' %')
-    print("Prediction on some test images :" )
     return 100 * correct / total
 
 # --- Chargement des données d'entrainement ---
@@ -122,6 +121,7 @@ test_insoles = openAndReshape(datapath + 'test_insoles.h5', shape=(273, 100, 50)
 train_data_concatenated = np.concatenate((train_insoles_cleaned, train_mocap_cleaned), axis=2)
 test_data_concatenated = np.concatenate((test_insoles, test_mocap), axis=2)
 
+print("Valeurs uniques des labels (bruts) :", np.unique(labels))
 # --- Création du jeu de données d'entrainement ---
 train_dataset = CustomDataset(train_data_concatenated, labels_cleaned)
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
@@ -136,7 +136,7 @@ else:
       device = 'cpu'
 print(device)
 
-model = Network(input_size=179, hidden_size=80, num_classes=12, num_layers=2, dropout_rate=0.5).to(device)
+model = Network(input_size=179, hidden_size=80, num_classes=13, num_layers=2, dropout_rate=0.5).to(device)
 print(model)
 
 
@@ -147,8 +147,6 @@ epochs = 10
 epoch_losses= []
 epoch_accuracies =[]
 t= []
-print("Before Training")
-oneAcc=test(test_loader, model, loss_fn,device)
 
 print("Training Start")
 for i in range(epochs):
