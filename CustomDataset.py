@@ -7,7 +7,7 @@ class CustomDataset(Dataset):
         self.labels = torch.tensor(labels, dtype=torch.long) if labels is not None else None
 
     def __len__(self):
-        return len(self.insoles)
+        return len(self.data)
 
     def __getitem__(self, idx):
         if self.labels is not None:
