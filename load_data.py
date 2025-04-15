@@ -142,7 +142,7 @@ print(model)
 
 loss_fn = nn.CrossEntropyLoss()
 tx_appr = 0.001
-optim = torch.optim.SGD(model.parameters(), lr=tx_appr, momentum=0.9)
+optim = torch.optim.Adam(model.parameters(), lr=0.001)
 epochs = 10
 epoch_losses= []
 epoch_accuracies =[]
